@@ -12,7 +12,7 @@ import HotelCheckout from "./pages/payments/Checkout";
 import LoginPage from "./pages/auth/NewLogin";
 import RegistrationPage from "./pages/auth/NewRegister";
 import OrderDashboard from "./pages/admin-portal/orders/Order";
-import ExtrasLogDashboard from "./pages/admin-portal/logs/Logs";
+import ExtrasLogDashboard from "./pages/admin-portal/extra/LogsDashboard";
 import AdminLoginPage from "./pages/admin-portal/auth/Login";
 import ModernSidebar from "./components/admin/Sidebar/Sidebar";
 import AdminLayouts from "./layouts/AdminLayouts";
