@@ -27,6 +27,7 @@ import {
   CoffeeIcon,
   Sparkles,
   CheckCircle,
+  Building,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BASE_FILE_URI, BASE_URI } from "../../utils/BaseUrl.utils";
@@ -40,10 +41,9 @@ const RoomDetailsPage = () => {
   const [selectedDates, setSelectedDates] = useState({
     startDate: null,
     endDate: null,
-    selecting: "start",
   });
-  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [guests, setGuests] = useState({ adults: 2, children: 0, infants: 0 });
+  const [rooms, setRooms] = useState(1);
   const [showGuestPicker, setShowGuestPicker] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
@@ -210,9 +210,14 @@ const RoomDetailsPage = () => {
       return false;
     }
 
+    if (rooms < 1) {
+      toast.error("At least one room is required");
+      return false;
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (selectedDates.startDate < today) {
+    if (new Date(selectedDates.startDate) < today) {
       toast.error("Check-in date cannot be in the past");
       return false;
     }
@@ -220,30 +225,27 @@ const RoomDetailsPage = () => {
     return true;
   };
 
-  useEffect(() => {
-  console.log('Guest picker state:', showGuestPicker);
-  console.log('Current guests:', guests);
-  
-  const handleClickOutside = (event) => {
-    // Check if click is outside the guest picker
-    const guestPickerContainer = document.querySelector('.guest-picker-container');
-    if (showGuestPicker && guestPickerContainer && !guestPickerContainer.contains(event.target)) {
-      console.log('Clicked outside, closing guest picker');
-      setShowGuestPicker(false);
-    }
+  // Handle date changes
+  const handleDateChange = (field, value) => {
+    setSelectedDates(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
-  // Add a small delay to prevent immediate closure when opening
-  if (showGuestPicker) {
-    setTimeout(() => {
-      document.addEventListener('mousedown', handleClickOutside);
-    }, 100);
-  } else {
-    document.removeEventListener('mousedown', handleClickOutside);
-  }
+  // Get minimum date (today)
+  const getMinDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
 
-  return () => document.removeEventListener('mousedown', handleClickOutside);
-}, [showGuestPicker, guests]);
+  // Get minimum checkout date (day after checkin)
+  const getMinCheckoutDate = () => {
+    if (!selectedDates.startDate) return getMinDate();
+    const checkin = new Date(selectedDates.startDate);
+    checkin.setDate(checkin.getDate() + 1);
+    return checkin.toISOString().split('T')[0];
+  };
 
   // Alternative approach: Store data in sessionStorage (if you need to persist across page refreshes)
   const handleBookNowWithSessionStorage = async () => {
@@ -263,14 +265,15 @@ const RoomDetailsPage = () => {
           room_images_metadata: roomData.room_images_metadata,
         },
         bookingDetails: {
-          checkInDate: selectedDates.startDate.toISOString().split("T")[0],
-          checkOutDate: selectedDates.endDate.toISOString().split("T")[0],
+          checkInDate: selectedDates.startDate,
+          checkOutDate: selectedDates.endDate,
           guests: {
             adults: guests.adults,
             children: guests.children,
             infants: guests.infants,
             total: guests.adults + guests.children,
           },
+          rooms: rooms,
         },
         pricing: {
           basePrice: roomData?.room_price,
@@ -319,20 +322,6 @@ const RoomDetailsPage = () => {
         </div>
       </div>
     );
-  }
-
-  // Calendar logic
-  const getDaysInMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
-  };
-
-  const getFirstDayOfMonth = (date) => {
-    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-  };
-
-  // Removed weekend logic - all days have same price
-  const getDayPrice = () => {
-    return roomData?.room_price || 0;
   };
 
   // Fixed calculation - simple multiplication of nights by room price
@@ -346,9 +335,9 @@ const RoomDetailsPage = () => {
 
     const nights = getDaysBetween();
     const roomPrice = roomData.room_price;
-    const subtotal = nights * roomPrice;
+    const subtotal = nights * roomPrice * rooms;
 
-    console.log(`Calculation: ${nights} nights × ₹${roomPrice} = ₹${subtotal}`);
+    console.log(`Calculation: ${nights} nights × ₹${roomPrice} × ${rooms} rooms = ₹${subtotal}`);
     return subtotal;
   };
 
@@ -368,137 +357,6 @@ const RoomDetailsPage = () => {
     const subtotal = calculateSubtotal();
     const taxes = calculateTaxes();
     return subtotal + cleaningFee + serviceFee + taxes;
-  };
-
-  const handleDateClick = (day, monthOffset = 0) => {
-    const clickedDate = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() + monthOffset,
-      day
-    );
-
-    if (selectedDates.selecting === "start") {
-      setSelectedDates({
-        startDate: clickedDate,
-        endDate: null,
-        selecting: "end",
-      });
-    } else {
-      if (clickedDate > selectedDates.startDate) {
-        setSelectedDates({
-          ...selectedDates,
-          endDate: clickedDate,
-          selecting: "start",
-        });
-      } else {
-        setSelectedDates({
-          startDate: clickedDate,
-          endDate: null,
-          selecting: "end",
-        });
-      }
-    }
-  };
-
-  const isDateInRange = (day, monthOffset = 0) => {
-    if (!selectedDates.startDate || !selectedDates.endDate) return false;
-    const date = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() + monthOffset,
-      day
-    );
-    return date >= selectedDates.startDate && date <= selectedDates.endDate;
-  };
-
-  const isStartDate = (day, monthOffset = 0) => {
-    if (!selectedDates.startDate) return false;
-    const date = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() + monthOffset,
-      day
-    );
-    return date.toDateString() === selectedDates.startDate.toDateString();
-  };
-
-  const isEndDate = (day, monthOffset = 0) => {
-    if (!selectedDates.endDate) return false;
-    const date = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() + monthOffset,
-      day
-    );
-    return date.toDateString() === selectedDates.endDate.toDateString();
-  };
-
-  const renderCalendarMonth = (monthOffset = 0) => {
-    const monthDate = new Date(
-      currentMonth.getFullYear(),
-      currentMonth.getMonth() + monthOffset,
-      1
-    );
-    const daysInMonth = getDaysInMonth(monthDate);
-    const firstDay = getFirstDayOfMonth(monthDate);
-    const days = [];
-    const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
-
-    // Add day headers
-    dayNames.forEach((day) => {
-      days.push(
-        <div
-          key={day}
-          className="p-1 text-center text-xs font-medium text-gray-500"
-        >
-          {day}
-        </div>
-      );
-    });
-
-    // Add empty cells for days before month starts
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="p-1"></div>);
-    }
-
-    // Add days of month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
-      const inRange = isDateInRange(day, monthOffset);
-      const isStart = isStartDate(day, monthOffset);
-      const isEnd = isEndDate(day, monthOffset);
-      const isPast = date < new Date().setHours(0, 0, 0, 0);
-
-      days.push(
-        <motion.div
-          key={day}
-          whileHover={{ scale: isPast ? 1 : 1.05 }}
-          className={`p-1 cursor-pointer text-center relative text-sm font-medium transition-all duration-200 ${
-            isPast
-              ? "text-gray-300 cursor-not-allowed"
-              : inRange && !isStart && !isEnd
-              ? "bg-gradient-to-r from-blue-100 to-purple-100 text-gray-800"
-              : "hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:rounded-full"
-          } ${
-            isStart || isEnd
-              ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full shadow-lg transform scale-105"
-              : ""
-          }`}
-          onClick={() => !isPast && handleDateClick(day, monthOffset)}
-        >
-          <div>{day}</div>
-        </motion.div>
-      );
-    }
-
-    return (
-      <div className="flex-1">
-        <h3 className="text-base font-semibold mb-2 text-center text-gray-800">
-          {monthDate.toLocaleDateString("en-US", {
-            month: "long",
-            year: "numeric",
-          })}
-        </h3>
-        <div className="grid grid-cols-7 gap-1">{days}</div>
-      </div>
-    );
   };
 
   // Updated updateGuests function with better logic and debugging
@@ -527,6 +385,21 @@ const RoomDetailsPage = () => {
       console.log("New guests:", newGuests); // Debug log
       return newGuests;
     });
+  };
+
+  // Function to format guest display with split numbers
+  const formatGuestDisplay = () => {
+    const parts = [];
+    if (guests.adults > 0) {
+      parts.push(`${guests.adults} Adult${guests.adults > 1 ? 's' : ''}`);
+    }
+    if (guests.children > 0) {
+      parts.push(`${guests.children} Child${guests.children > 1 ? 'ren' : ''}`);
+    }
+    if (guests.infants > 0) {
+      parts.push(`${guests.infants} Infant${guests.infants > 1 ? 's' : ''}`);
+    }
+    return parts.join(', ') || '0 Guests';
   };
 
   return (
@@ -653,41 +526,6 @@ const RoomDetailsPage = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2">
-            {/* Room Info */}
-            {/* <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="pb-4 border-b border-gray-200"
-            > */}
-              {/* <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="flex items-center gap-2 text-gray-600 mb-2">
-                    <Users className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm">Perfect for couples & families</span>
-                    <span>•</span>
-                    <Bed className="w-4 h-4 text-purple-500" />
-                    <span className="text-sm">Comfortable bedding</span>
-                  </div>
-                </div>
-              </div> */}
-
-              {/* <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl shadow-sm">
-                <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full">
-                  <Medal className="text-white" size={20} />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-800">
-                    Quality Assured Room
-                  </p>
-                  <p className="text-gray-600 text-sm">
-                    This room meets our highest standards for comfort,
-                    cleanliness, and luxury.
-                  </p>
-                </div>
-              </div> */}
-            {/* </motion.div> */}
-
             {/* Enhanced Amenities */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -872,309 +710,8 @@ const RoomDetailsPage = () => {
                 </div>
               </motion.div>
             )}
-
-            {/* Enhanced Calendar Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="py-4"
-            >
-              <div className="flex items-center gap-2 mb-3">
-                <Calendar className="w-5 h-5 text-green-500" />
-                <h3 className="text-xl font-bold text-gray-800">
-                  Select Your Dates
-                </h3>
-              </div>
-              <p className="text-gray-600 mb-4 text-sm">
-                Choose your perfect stay dates for personalized pricing
-              </p>
-
-              <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-lg">
-                {/* Calendar Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() =>
-                      setCurrentMonth(
-                        new Date(
-                          currentMonth.getFullYear(),
-                          currentMonth.getMonth() - 1
-                        )
-                      )
-                    }
-                    className="p-2 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-full transition-all duration-200 border border-gray-200"
-                  >
-                    <ChevronLeft size={18} className="text-gray-600" />
-                  </motion.button>
-                  <div className="flex-1" />
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() =>
-                      setCurrentMonth(
-                        new Date(
-                          currentMonth.getFullYear(),
-                          currentMonth.getMonth() + 1
-                        )
-                      )
-                    }
-                    className="p-2 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-full transition-all duration-200 border border-gray-200"
-                  >
-                    <ChevronRight size={18} className="text-gray-600" />
-                  </motion.button>
-                </div>
-
-                {/* Two Month Calendar */}
-                <div className="flex gap-6">
-                  {renderCalendarMonth(0)}
-                  {renderCalendarMonth(1)}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Enhanced Booking Card */}
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className="lg:col-span-1"
-          >
-            <div className="sticky top-8 bg-white border border-gray-200 rounded-xl p-4 shadow-xl backdrop-blur-sm">
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-2xl font-bold">
-                  ₹{roomData?.room_price}
-                </span>
-                <span className="text-gray-600 font-medium">/ night</span>
-              </div>
-
-              {/* Enhanced Date Inputs */}
-              <div className="border border-gray-200 rounded-lg mb-3 overflow-hidden">
-                <div className="grid grid-cols-2">
-                  <div className="p-3 border-r border-gray-200 ">
-                    <label className="text-xs font-bold text-gray-700 block mb-1 uppercase tracking-wide">
-                      Check-In
-                    </label>
-                    <div className="text-sm font-semibold text-gray-800">
-                      {selectedDates.startDate
-                        ? selectedDates.startDate.toLocaleDateString()
-                        : "Select date"}
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <label className="text-xs font-bold text-gray-700 block mb-1 uppercase tracking-wide">
-                      Check-Out
-                    </label>
-                    <div className="text-sm font-semibold text-gray-800">
-                      {selectedDates.endDate
-                        ? selectedDates.endDate.toLocaleDateString()
-                        : "Select date"}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Enhanced Guest Picker */}
-                <div className="relative border-t border-gray-200 guest-picker-container">
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      console.log(
-                        "Guest picker button clicked, current state:",
-                        showGuestPicker
-                      );
-                      setShowGuestPicker(!showGuestPicker);
-                    }}
-                    className="w-full p-3 text-left hover:bg-gray-50 transition-colors duration-200"
-                  >
-                    <label className="text-xs font-bold text-gray-700 block mb-1 uppercase tracking-wide">
-                      Guests
-                    </label>
-                    <div className="text-sm font-semibold text-gray-800 flex items-center justify-between">
-                      <span>
-                        {guests.adults + guests.children} guest
-                        {guests.adults + guests.children !== 1 ? "s" : ""}
-                        {guests.infants > 0 && (
-                          <span className="text-gray-600">
-                            , {guests.infants} infant
-                            {guests.infants > 1 ? "s" : ""}
-                          </span>
-                        )}
-                      </span>
-                      <ChevronRight
-                        size={14}
-                        className={`transform transition-transform duration-200 ${
-                          showGuestPicker ? "rotate-90" : ""
-                        }`}
-                      />
-                    </div>
-                  </button>
-                  <AnimatePresence>
-                    { showGuestPicker && ( 
-                      <motion.div
-                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="relative top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl p-4 mt-1"
-                        style={{
-                          boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.25)",
-                          zIndex: 9999,
-                          minWidth: "280px", // Add minimum width
-                          maxWidth: "100%", // Ensure it doesn't overflow
-                        }}
-                      >
-                        <div className="space-y-4">
-                          {[
-                            {
-                              type: "adults",
-                              label: "Adults",
-                              subtitle: "Ages 13 or above",
-                              min: 2, 
-                            },
-                            {
-                              type: "children",
-                              label: "Children",
-                              subtitle: "Ages 2–12",
-                              min: 0,
-                            },
-                            {
-                              type: "infants",
-                              label: "Infants",
-                              subtitle: "Under 2",
-                              min: 0,
-                            },
-                          ]?.map(({ type, label, subtitle, min }) => (
-                            <div
-                              key={type}
-                              className="flex items-center justify-between py-2"
-                            >
-                              <div>
-                                <div className="font-semibold text-gray-800 text-sm">
-                                  {label}
-                                </div>
-                                <div className="text-xs text-gray-600">
-                                  {subtitle}
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-3">
-                                <motion.button
-                                  whileHover={{
-                                    scale: guests[type] > min ? 1.1 : 1,
-                                  }}
-                                  whileTap={{
-                                    scale: guests[type] > min ? 0.95 : 1,
-                                  }}
-                                  onClick={(e) => {
-                                    e.preventDefault(); // Add preventDefault
-                                    e.stopPropagation();
-                                    console.log(
-                                      `Decrement ${type} clicked, current value:`,
-                                      guests[type]
-                                    );
-                                    updateGuests(type, "decrement");
-                                  }}
-                                  className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold text-sm transition-all duration-200 ${
-                                    guests[type] > min
-                                      ? "border-blue-300 text-blue-600 hover:border-blue-500 hover:bg-blue-50 cursor-pointer"
-                                      : "border-gray-200 text-gray-300 cursor-not-allowed"
-                                  }`}
-                                  disabled={guests[type] <= min}
-                                >
-                                  -
-                                </motion.button>
-
-                                <span className="w-6 text-center font-bold text-sm text-gray-800">
-                                  {guests[type]}
-                                </span>
-
-                                <motion.button
-                                  whileHover={{ scale: 1.1 }}
-                                  whileTap={{ scale: 0.95 }}
-                                  onClick={(e) => {
-                                    e.preventDefault(); // Add preventDefault
-                                    e.stopPropagation();
-                                    console.log(
-                                      `Increment ${type} clicked, current value:`,
-                                      guests[type]
-                                    );
-                                    updateGuests(type, "increment");
-                                  }}
-                                  className="w-8 h-8 rounded-full border border-blue-300 flex items-center justify-center hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 font-bold text-sm text-blue-600 cursor-pointer"
-                                >
-                                  +
-                                </motion.button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Enhanced Close button */}
-                        <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between items-center">
-                          <div className="text-xs text-gray-600">
-                            Total: {guests.adults + guests.children} guest
-                            {guests.adults + guests.children !== 1 ? "s" : ""}
-                            {guests.infants > 0 &&
-                              `, ${guests.infants} infant${
-                                guests.infants > 1 ? "s" : ""
-                              }`}
-                          </div>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              e.preventDefault(); // Add preventDefault
-                              e.stopPropagation();
-                              console.log("Close button clicked");
-                              setShowGuestPicker(false);
-                            }}
-                            className="px-4 py-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-md hover:from-blue-600 hover:to-purple-600 transition-all duration-200 font-semibold shadow-md text-sm"
-                          >
-                            Done
-                          </motion.button>
-                        </div>
-                      </motion.div>
-                      
-                      
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              {/* Enhanced Reserve Button */}
-              <motion.button
-                whileHover={{ scale: isBooking ? 1 : 1.02 }}
-                whileTap={{ scale: isBooking ? 1 : 0.98 }}
-                onClick={handleBookNowWithSessionStorage}
-                disabled={isBooking}
-                className={`w-full py-3 rounded-lg font-bold text-base transition-all duration-300 mb-4 shadow-lg ${
-                  isBooking
-                    ? "bg-gray-400 text-white cursor-not-allowed"
-                    : "bg-gradient-to-r from-pink-500 via-red-500 to-orange-500 text-white hover:from-pink-600 hover:via-red-600 hover:to-orange-600 hover:shadow-xl transform hover:-translate-y-0.5"
-                }`}
-              >
-                {isBooking ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Processing...
-                  </div>
-                ) : (
-                  <>
-                    <Sparkles className="inline mr-2" size={16} />
-                    Book Now
-                  </>
-                )}
-              </motion.button>
-
-              <p className="text-center text-xs text-gray-600 mb-4 font-medium">
-                ✨ Secure booking • No charges yet
-              </p>
-
-              {/* Enhanced Pricing Breakdown */}
-              {selectedDates.startDate && selectedDates.endDate && (
+<div className="py-4">
+               {selectedDates.startDate && selectedDates.endDate && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -1183,7 +720,7 @@ const RoomDetailsPage = () => {
                   <div className="flex justify-between text-gray-700 text-sm">
                     <span className="underline font-medium">
                       ₹{roomData?.room_price?.toLocaleString()} x{" "}
-                      {getDaysBetween()} nights
+                      {getDaysBetween()} nights x {rooms} room{rooms > 1 ? 's' : ''}
                     </span>
                     <span className="font-semibold">
                       ₹{calculateSubtotal().toLocaleString()}
@@ -1232,9 +769,337 @@ const RoomDetailsPage = () => {
                   </div>
                 </motion.div>
               )}
+            </div>
+          
+            
+             
+            </div>
+            
+
+          {/* Enhanced Booking Card */}
+          <motion.div
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.3 }}
+            className="lg:col-span-1"
+          >
+            <div className="sticky top-8 bg-white border border-gray-200 rounded-xl p-4 shadow-xl backdrop-blur-sm">
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-2xl font-bold">
+                  ₹{roomData?.room_price}
+                </span>
+                <span className="text-gray-600 font-medium">/ night</span>
+              </div>
+
+              {/* Enhanced Date Inputs with HTML date picker */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="w-4 h-4 text-blue-500" />
+                  <h4 className="font-semibold text-gray-800 text-sm">Select Dates</h4>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Check-in Date */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-700 block uppercase tracking-wide">
+                      Check-In
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={selectedDates.startDate || ''}
+                        min={getMinDate()}
+                        onChange={(e) => handleDateChange('startDate', e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm font-medium bg-gradient-to-r from-blue-50 to-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Check-out Date */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-700 block uppercase tracking-wide">
+                      Check-Out
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={selectedDates.endDate || ''}
+                        min={getMinCheckoutDate()}
+                        onChange={(e) => handleDateChange('endDate', e.target.value)}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm font-medium bg-gradient-to-r from-purple-50 to-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Guest and Rooms Section */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="w-4 h-4 text-green-500" />
+                  <h4 className="font-semibold text-gray-800 text-sm">Guests & Rooms</h4>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Guest Picker */}
+                  <div className="relative guest-picker-container">
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowGuestPicker(!showGuestPicker);
+                      }}
+                      className="w-full p-3 text-left hover:bg-gradient-to-r hover:from-green-50 hover:to-blue-50 transition-all duration-200 border border-gray-300 rounded-lg"
+                    >
+                      <label className="text-xs font-bold text-gray-700 block mb-1 uppercase tracking-wide">
+                        Guests
+                      </label>
+                      <div className="text-sm font-semibold text-gray-800 flex items-center justify-between">
+                        <span className="text-green-700">
+                          {formatGuestDisplay()}
+                        </span>
+                        <ChevronRight
+                          size={14}
+                          className={`transform transition-transform duration-200 text-green-600 ${
+                            showGuestPicker ? "rotate-90" : ""
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    <AnimatePresence>
+                      {showGuestPicker && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-xl p-4 mt-1 z-50"
+                          style={{
+                            boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.25)",
+                            minWidth: "280px",
+                            maxWidth: "100%",
+                          }}
+                        >
+                          <div className="space-y-4">
+                            {[
+                              {
+                                type: "adults",
+                                label: "Adults",
+                                subtitle: "Ages 13 or above",
+                                min: 1,
+                                color: "blue"
+                              },
+                              {
+                                type: "children",
+                                label: "Children",
+                                subtitle: "Ages 2–12",
+                                min: 0,
+                                color: "green"
+                              },
+                              {
+                                type: "infants",
+                                label: "Infants",
+                                subtitle: "Under 2",
+                                min: 0,
+                                color: "purple"
+                              },
+                            ].map(({ type, label, subtitle, min, color }) => (
+                              <div
+                                key={type}
+                                className="flex items-center justify-between py-2"
+                              >
+                                <div>
+                                  <div className="font-semibold text-gray-800 text-sm">
+                                    {label}
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    {subtitle}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  <motion.button
+                                    whileHover={{
+                                      scale: guests[type] > min ? 1.1 : 1,
+                                    }}
+                                    whileTap={{
+                                      scale: guests[type] > min ? 0.95 : 1,
+                                    }}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      updateGuests(type, "decrement");
+                                    }}
+                                    className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold text-sm transition-all duration-200 ${
+                                      guests[type] > min
+                                        ? `border-${color}-300 text-${color}-600 hover:border-${color}-500 hover:bg-${color}-50 cursor-pointer`
+                                        : "border-gray-200 text-gray-300 cursor-not-allowed"
+                                    }`}
+                                    disabled={guests[type] <= min}
+                                  >
+                                    -
+                                  </motion.button>
+
+                                  <span className="w-6 text-center font-bold text-sm text-gray-800">
+                                    {guests[type]}
+                                  </span>
+
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      updateGuests(type, "increment");
+                                    }}
+                                    className={`w-8 h-8 rounded-full border border-${color}-300 flex items-center justify-center hover:border-${color}-500 hover:bg-${color}-50 transition-all duration-200 font-bold text-sm text-${color}-600 cursor-pointer`}
+                                  >
+                                    +
+                                  </motion.button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="pt-3 mt-3 border-t border-gray-200 flex justify-between items-center">
+                            <div className="text-xs text-gray-600">
+                              {formatGuestDisplay()}
+                            </div>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setShowGuestPicker(false);
+                              }}
+                              className="px-4 py-1 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-md hover:from-green-600 hover:to-blue-600 transition-all duration-200 font-semibold shadow-md text-sm"
+                            >
+                              Done
+                            </motion.button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Rooms Selector */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-700 block uppercase tracking-wide">
+                      Rooms
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={rooms}
+                        onChange={(e) => setRooms(parseInt(e.target.value))}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 text-sm font-medium bg-gradient-to-r from-orange-50 to-white appearance-none cursor-pointer"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                          <option key={num} value={num}>
+                            {num} Room{num > 1 ? 's' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <Building className="w-4 h-4 text-orange-500" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Reserve Button */}
+              <motion.button
+                whileHover={{ scale: isBooking ? 1 : 1.02 }}
+                whileTap={{ scale: isBooking ? 1 : 0.98 }}
+                onClick={handleBookNowWithSessionStorage}
+                disabled={isBooking}
+                className={`w-full py-3 rounded-lg font-bold text-base transition-all duration-300 mb-4 shadow-lg ${
+                  isBooking
+                    ? "bg-gray-400 text-white cursor-not-allowed"
+                    : "bg-gradient-to-r from-pink-500 via-red-500 to-orange-500 text-white hover:from-pink-600 hover:via-red-600 hover:to-orange-600 hover:shadow-xl transform hover:-translate-y-0.5"
+                }`}
+              >
+                {isBooking ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </div>
+                ) : (
+                  <>
+                    <Sparkles className="inline mr-2" size={16} />
+                    Book Now
+                  </>
+                )}
+              </motion.button>
+
+              <p className="text-center text-xs text-gray-600 mb-4 font-medium">
+                ✨ Secure booking • No charges yet
+              </p>
+
+              {/* Enhanced Pricing Breakdown */}
+              {/* {selectedDates.startDate && selectedDates.endDate && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-2 bg-gradient-to-r from-gray-50 to-blue-50 p-3 rounded-lg border border-gray-200"
+                >
+                  <div className="flex justify-between text-gray-700 text-sm">
+                    <span className="underline font-medium">
+                      ₹{roomData?.room_price?.toLocaleString()} x{" "}
+                      {getDaysBetween()} nights x {rooms} room{rooms > 1 ? 's' : ''}
+                    </span>
+                    <span className="font-semibold">
+                      ₹{calculateSubtotal().toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-gray-700 text-sm">
+                    <span className="underline font-medium">Cleaning fee</span>
+                    <span className="font-semibold">
+                      ₹{cleaningFee.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-gray-700 text-sm">
+                    <span className="underline font-medium">Service fee</span>
+                    <span className="font-semibold">
+                      ₹{serviceFee.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-gray-700 text-sm">
+                    <span className="underline font-medium">
+                      Taxes ({totalTax}%)
+                    </span>
+                    <span className="font-semibold">
+                      ₹{calculateTaxes().toLocaleString()}
+                    </span>
+                  </div>
+                  <hr className="border-gray-300" />
+                  <div className="flex justify-between font-bold text-lg text-gray-800">
+                    <span>Total</span>
+                    <span>₹{calculateTotal().toLocaleString()}</span>
+                  </div>
+
+               
+                  <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
+                    <div className="flex justify-between mb-1">
+                      <span>CGST ({cgst}%)</span>
+                      <span>
+                        ₹{Math.round(calculateTaxes() / 2).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>SGST ({sgst}%)</span>
+                      <span>
+                        ₹{Math.round(calculateTaxes() / 2).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              )} */}
 
               {/* Enhanced Room Details Summary */}
-              <div className="mt-4 pt-3 border-t border-gray-200">
+              {/* <div className="mt-4 pt-3 border-t border-gray-200">
                 <h4 className="font-bold mb-2 text-gray-800 flex items-center gap-2 text-sm">
                   <Home className="w-4 h-4 text-blue-500" />
                   Room Summary
@@ -1263,12 +1128,18 @@ const RoomDetailsPage = () => {
                         1}
                     </span>
                   </div>
+                  <div className="flex justify-between items-center p-2 bg-orange-50 rounded-md">
+                    <span className="text-gray-600 text-xs">Rooms:</span>
+                    <span className="font-semibold text-orange-700 text-xs">
+                      {rooms}
+                    </span>
+                  </div>
                   {(roomData.room_facilities?.room_hotWater ||
                     roomData.room_facilities?.hotWater ||
                     roomData.room_facilities?.hot_water) && (
-                    <div className="flex justify-between items-center p-2 bg-orange-50 rounded-md">
+                    <div className="flex justify-between items-center p-2 bg-red-50 rounded-md">
                       <span className="text-gray-600 text-xs">Hot Water:</span>
-                      <span className="font-semibold text-orange-700 text-xs">
+                      <span className="font-semibold text-red-700 text-xs">
                         Available
                       </span>
                     </div>
@@ -1286,7 +1157,7 @@ const RoomDetailsPage = () => {
                 </div>
               </div>
 
-              {/* Enhanced Food Options */}
+              
               {getFoodInclusions().length > 0 && (
                 <div className="mt-4 pt-3 border-t border-gray-200">
                   <h4 className="font-bold mb-2 text-gray-800 flex items-center gap-2 text-sm">
@@ -1311,7 +1182,7 @@ const RoomDetailsPage = () => {
                     ))}
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
           </motion.div>
         </div>
