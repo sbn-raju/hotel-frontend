@@ -30,7 +30,7 @@ const ExtrasLogDashboard = () => {
   });
 
   // API base URL - adjust this to match your backend
-  const API_BASE_URL = 'http://localhost:8080/api/v1.hotel/extras'; // Change this to your actual API URL
+  const API_BASE_URL = 'https://hotel-backend-production-a5b0.up.railway.app/api/v1.hotel/extras'; // Change this to your actual API URL
 
   // Show message helper
   const showMessage = (message, type = 'success') => {

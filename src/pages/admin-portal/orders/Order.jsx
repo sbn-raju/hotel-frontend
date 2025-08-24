@@ -36,7 +36,7 @@ const OrderDashboard = () => {
   const [totalPages, setTotalPages] = useState(0);
 
   // Base API URL
-  const API_BASE_URL = 'http://localhost:8080/api/v1.hotel/payment';
+  const API_BASE_URL = 'https://hotel-backend-production-a5b0.up.railway.app/api/v1.hotel/payment';
 
   // Fetch orders from API
   const fetchOrders = async (page = 1, limit = 10, status = '', search = '') => {
