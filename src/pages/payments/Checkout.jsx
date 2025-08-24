@@ -103,7 +103,8 @@ export default function HotelCheckout() {
         guests: checkoutData.bookingDetails.guests,
         pricing: checkoutData.pricing,
         room_facilities: checkoutData.roomData.room_facilities,
-        food_inclusions: checkoutData.foodInclusions
+        food_inclusions: checkoutData.foodInclusions,
+        rooms: checkoutData?.bookingDetails?.rooms
       };
 
       console.log('Order payload:', orderPayload);
