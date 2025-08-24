@@ -42,25 +42,40 @@ const OrderDashboard = () => {
   const [totalPages, setTotalPages] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [dateFilter, setDateFilter] = useState({ from: '', to: '' });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [checkInStartDate, setCheckInStartDate] = useState('');
+  const [checkInEndDate, setCheckInEndDate] = useState('');
 
-  // Base API URL
+  // Base API URL - Updated to match your API endpoint
   const API_BASE_URL = 'https://hotel-backend-production-a5b0.up.railway.app/api/v1.hotel/payment';
 
   // Fetch orders from API
-  const fetchOrders = async (page = 1, limit = 10, status = '', search = '') => {
+  const fetchOrders = async (page = 1, limit = 10, status = '', search = '', startDate = '', endDate = '') => {
     try {
       setLoading(true);
       setError(null);
 
-      // Build query parameters
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
       });
 
-      if (status && status !== 'all') {
+      // Add filters to params
+      if (status && status !== 'all' && status !== '') {
         params.append('status', status);
+      }
+
+      if (search && search.trim() !== '') {
+        params.append('search', search.trim());
+      }
+
+      if (startDate) {
+        params.append('startDate', startDate);
+      }
+
+      if (endDate) {
+        params.append('endDate', endDate);
       }
 
       const url = `${API_BASE_URL}/fetch?${params.toString()}`;
@@ -79,37 +94,36 @@ const OrderDashboard = () => {
       const data = await response.json();
 
       if (data.success) {
-        let filteredData = data.data;
+        let filteredOrders = data.data;
 
-        // Apply client-side search filter
-        if (search) {
-          filteredData = filteredData.filter(order => 
-            order.order_id?.toLowerCase().includes(search.toLowerCase()) ||
-            order.user_id?.name?.toLowerCase().includes(search.toLowerCase()) ||
-            order.user_id?.email?.toLowerCase().includes(search.toLowerCase())
-          );
-        }
-
-        // Apply date filter
-        if (dateFilter.from || dateFilter.to) {
-          filteredData = filteredData.filter(order => {
-            const bookingDate = order.order_response?.notes?.[0]?.checkIn;
-            if (!bookingDate) return false;
+        // Apply client-side check-in date filter if specified
+        if (checkInStartDate || checkInEndDate) {
+          filteredOrders = filteredOrders.filter(order => {
+            const checkInDate = order.order_response?.notes?.[0]?.checkIn;
+            if (!checkInDate) return false;
             
-            const orderDate = new Date(bookingDate);
-            const fromDate = dateFilter.from ? new Date(dateFilter.from) : null;
-            const toDate = dateFilter.to ? new Date(dateFilter.to) : null;
+            const orderCheckInDate = new Date(checkInDate);
+            const filterStartDate = checkInStartDate ? new Date(checkInStartDate) : null;
+            const filterEndDate = checkInEndDate ? new Date(checkInEndDate) : null;
             
-            if (fromDate && orderDate < fromDate) return false;
-            if (toDate && orderDate > toDate) return false;
+            if (filterStartDate && orderCheckInDate < filterStartDate) return false;
+            if (filterEndDate && orderCheckInDate > filterEndDate) return false;
             
             return true;
           });
         }
 
-        setOrders(filteredData);
-        setTotalOrders(data.meta.total);
-        setTotalPages(data.meta.pages);
+        setOrders(filteredOrders);
+        
+        // Use API response meta data if check-in filter is not applied, otherwise calculate manually
+        if (!checkInStartDate && !checkInEndDate) {
+          setTotalOrders(data.meta.total);
+          setTotalPages(data.meta.pages);
+        } else {
+          // Recalculate pagination for client-side filtered data
+          setTotalOrders(filteredOrders.length);
+          setTotalPages(Math.ceil(filteredOrders.length / limit));
+        }
       } else {
         throw new Error(data.message || 'Failed to fetch orders');
       }
@@ -117,21 +131,23 @@ const OrderDashboard = () => {
       console.error('Error fetching orders:', err);
       setError(err.message || 'Failed to load orders');
       setOrders([]);
+      setTotalOrders(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
   };
 
-  // Initial load
+  // Initial load and when filters change
   useEffect(() => {
-    fetchOrders(currentPage, itemsPerPage, statusFilter, searchTerm);
-  }, [currentPage, itemsPerPage, statusFilter, dateFilter]);
+    fetchOrders(currentPage, itemsPerPage, statusFilter, searchTerm, startDate, endDate);
+  }, [currentPage, itemsPerPage, statusFilter]);
 
   // Search with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (currentPage === 1) {
-        fetchOrders(1, itemsPerPage, statusFilter, searchTerm);
+        fetchOrders(1, itemsPerPage, statusFilter, searchTerm, startDate, endDate);
       } else {
         setCurrentPage(1);
       }
@@ -182,7 +198,7 @@ const OrderDashboard = () => {
 
   // Handle refresh
   const handleRefresh = () => {
-    fetchOrders(currentPage, itemsPerPage, statusFilter, searchTerm);
+    fetchOrders(currentPage, itemsPerPage, statusFilter, searchTerm, startDate, endDate);
   };
 
   // Handle status filter change
@@ -200,6 +216,26 @@ const OrderDashboard = () => {
   const handleItemsPerPageChange = (newLimit) => {
     setItemsPerPage(newLimit);
     setCurrentPage(1);
+  };
+
+  // Handle filter submit
+  const handleFilterSubmit = () => {
+    setCurrentPage(1);
+    fetchOrders(1, itemsPerPage, statusFilter, searchTerm, startDate, endDate);
+  };
+
+  // Handle clear filters
+  const handleClearFilters = () => {
+    setStartDate('');
+    setEndDate('');
+    setCheckInStartDate('');
+    setCheckInEndDate('');
+    setStatusFilter('');
+    setSearchTerm('');
+    setCurrentPage(1);
+    setTimeout(() => {
+      fetchOrders(1, itemsPerPage, '', '', '', '');
+    }, 100);
   };
 
   // Export orders
@@ -239,6 +275,22 @@ const OrderDashboard = () => {
   const formatCurrency = (amount) => {
     return `₹${(amount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   };
+
+  // Get displayed orders (for client-side filtering like check-in dates)
+  const getDisplayedOrders = () => {
+    let displayedOrders = orders;
+    
+    // If we have client-side check-in date filters, apply pagination manually
+    if (checkInStartDate || checkInEndDate) {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      displayedOrders = orders.slice(startIndex, endIndex);
+    }
+    
+    return displayedOrders;
+  };
+
+  const displayedOrders = getDisplayedOrders();
 
   if (loading) {
     return (
@@ -296,7 +348,7 @@ const OrderDashboard = () => {
                 onClick={() => setError(null)}
                 className="ml-auto text-red-400 hover:text-red-600"
               >
-                <XCircle className="h-5 w-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
           </div>
@@ -306,75 +358,132 @@ const OrderDashboard = () => {
       {/* Filters and Search */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
-            {/* Search */}
-            <div className="relative md:col-span-2">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Search orders by ID, customer..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+          <div className="bg-white shadow rounded-xl p-4 mb-6">
+  <h2 className="text-lg font-semibold text-gray-700 mb-4">Filters</h2>
 
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => handleStatusFilterChange(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="success">Success</option>
-              <option value="failed">Failed</option>
-              <option value="created">Created</option>
-            </select>
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    {/* Status Filter */}
+    <div className="flex flex-col">
+      <label className="text-sm font-medium text-gray-600 mb-1">Status</label>
+      <select
+        value={statusFilter}
+        onChange={(e) => handleStatusFilterChange(e.target.value)}
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      >
+        <option value="">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="success">Success</option>
+        <option value="failed">Failed</option>
+        <option value="created">Created</option>
+      </select>
+    </div>
 
-            {/* Date Filter From */}
-            <input
-              type="date"
-              placeholder="From Date"
-              value={dateFilter.from}
-              onChange={(e) => setDateFilter(prev => ({ ...prev, from: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+    {/* Order Date Range */}
+    {/* <div className="flex flex-col">
+      <label className="text-sm font-medium text-gray-600 mb-1">Order From</label>
+      <input
+        type="date"
+        value={startDate}
+        onChange={(e) => setStartDate(e.target.value)}
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div>
+    <div className="flex flex-col">
+      <label className="text-sm font-medium text-gray-600 mb-1">Order To</label>
+      <input
+        type="date"
+        value={endDate}
+        onChange={(e) => setEndDate(e.target.value)}
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div> */}
 
-            {/* Date Filter To */}
-            <input
-              type="date"
-              placeholder="To Date"
-              value={dateFilter.to}
-              onChange={(e) => setDateFilter(prev => ({ ...prev, to: e.target.value }))}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+    {/* Check-in Date Range */}
+    <div className="flex flex-col">
+      <label className="text-sm font-medium text-gray-600 mb-1">Check-in From</label>
+      <input
+        type="date"
+        value={checkInStartDate}
+        onChange={(e) => setCheckInStartDate(e.target.value)}
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div>
+    <div className="flex flex-col">
+      <label className="text-sm font-medium text-gray-600 mb-1">Check-in To</label>
+      <input
+        type="date"
+        value={checkInEndDate}
+        onChange={(e) => setCheckInEndDate(e.target.value)}
+        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
+    </div>
+  </div>
 
-            {/* Items per page */}
-            <select
-              value={itemsPerPage}
-              onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value={5}>5 per page</option>
-              <option value={10}>10 per page</option>
-              <option value={20}>20 per page</option>
-              <option value={50}>50 per page</option>
-            </select>
-          </div>
-          
-          {/* Stats */}
-          <div className="flex items-center text-sm text-gray-600">
-            Total: {totalOrders} orders
-          </div>
+  {/* Action Buttons */}
+  <div className="flex justify-end space-x-3 mt-6">
+    <button
+      onClick={handleClearFilters}
+      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+    >
+      Clear
+    </button>
+    <button
+      onClick={handleFilterSubmit}
+      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+    >
+      Apply
+    </button>
+  </div>
+
+  {/* Active Filters */}
+  {(startDate || endDate || checkInStartDate || checkInEndDate || statusFilter) && (
+    <div className="mt-4 flex flex-wrap gap-2">
+      <span className="text-sm text-gray-600">Active filters:</span>
+      {startDate && (
+        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+          Order From: {new Date(startDate).toLocaleDateString()}
+        </span>
+      )}
+      {endDate && (
+        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+          Order To: {new Date(endDate).toLocaleDateString()}
+        </span>
+      )}
+      {checkInStartDate && (
+        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+          Check-in From: {new Date(checkInStartDate).toLocaleDateString()}
+        </span>
+      )}
+      {checkInEndDate && (
+        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+          Check-in To: {new Date(checkInEndDate).toLocaleDateString()}
+        </span>
+      )}
+      {statusFilter && (
+        <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+          Status: {statusFilter}
+        </span>
+      )}
+    </div>
+  )}
+</div>
+
         </div>
 
         {/* Orders Table */}
         <div className="mt-6 overflow-hidden">
-          {orders.length === 0 ? (
+          {displayedOrders.length === 0 ? (
             <div className="text-center py-12">
               <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No orders found</p>
+              {(startDate || endDate || checkInStartDate || checkInEndDate || statusFilter || searchTerm) && (
+                <button
+                  onClick={handleClearFilters}
+                  className="mt-2 text-blue-600 hover:text-blue-800"
+                >
+                  Clear all filters
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -405,7 +514,7 @@ const OrderDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {orders.map((order) => {
+                  {displayedOrders.map((order) => {
                     const formattedOrder = formatOrderData(order);
                     const checkInDate = order.order_response?.notes?.[0]?.checkIn;
                     return (
