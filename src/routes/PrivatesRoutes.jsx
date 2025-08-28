@@ -17,11 +17,16 @@ const PrivateRoute = ({children}) => {
 
     //Redirect to navigation page when not authenticated.
     if(!authState?.isAuthenticated){
-        return <Navigate to="/login" />;
+        return <Navigate to="/new-register" />;
+    }
+
+    // Only allow admin users
+    if(authState?.role !== 'admin'){
+      return <Navigate to="/not-authorized" />;
     }
 
     //Render the childer when it is needed.
     return children
 }
 
-export default ProtectedRoute
+export default PrivateRoute

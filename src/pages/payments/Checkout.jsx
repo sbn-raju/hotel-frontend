@@ -6,11 +6,13 @@ import toast from 'react-hot-toast';
 import Razorpay from 'razorpay';
 import useAuth from '../../hooks/AuthHooks';
 import Footer from '../landing/Footer';
+import passport from '../../../../backend/src/middlewares/googleAuth.middleware';
 
 export default function HotelCheckout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { authState } = useAuth();
+  const [isLoading, setIsLoading]  = useState(false);
   
   const [checkoutData, setCheckoutData] = useState(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -19,11 +21,83 @@ export default function HotelCheckout() {
     name: '',
     address: '',
     email: '',
-    phone: ''
+    phone: '',
+    citizen: 'indian',
+    passport: ''
   });
+  const [formErrors, setFormErrors] = useState({});
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const validateField = (name, value) => {
+    switch (name) {
+      case 'name':
+        if (!value.trim()) return 'Full name is required';
+        if (!/^[a-zA-Z\s]+$/.test(value)) return 'Name should only contain letters and spaces';
+        return '';
+      case 'email':
+        if (!value.trim()) return 'Email is required';
+        if (!/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(value)) return 'Invalid email address';
+        return '';
+      case 'address':
+        if (!value.trim()) return 'Address is required';
+        return '';
+      case 'phone':
+        if (!value.trim()) return 'Phone number is required';
+        if (!/^[6-9]\d{9}$/.test(value)) return 'Enter a valid 10-digit Indian phone number';
+        return '';
+      case 'passport':
+        if (formData.citizen === 'non-indian') {
+          if (!value.trim()) return 'Passport number is required';
+          if (!/^[A-PR-WYa-pr-wy][1-9]\d\s?\d{4}[1-9]$/.test(value.trim())) return 'Invalid passport number';
+        }
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setFormErrors(prev => ({
+      ...prev,
+      [name]: validateField(name, value)
+    }));
+  };
+
+  const handleCitizenChange = (e) => {
+    const value = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      citizen: value,
+      passport: value === 'indian' ? '' : prev.passport
+    }));
+    setFormErrors(prev => ({
+      ...prev,
+      citizen: '',
+      passport: value === 'indian' ? '' : validateField('passport', formData.passport)
+    }));
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    Object.keys(formData).forEach((key) => {
+      const err = validateField(key, formData[key]);
+      if (err) errors[key] = err;
+    });
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const isFormValid =
+    formData.name.trim() &&
+    formData.address.trim() &&
+    formData.phone.trim() &&
+    formData.email.trim() &&
+    (!formData.citizen || formData.citizen === 'indian' || (formData.citizen === 'non-indian' && formData.passport.trim())) &&
+    Object.values(formErrors).every((err) => !err);
 
   useEffect(() => {
       const storedData = sessionStorage.getItem('checkoutData');
@@ -67,19 +141,11 @@ export default function HotelCheckout() {
     return features;
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
   const handleSubmit = async (e) => {
     setIsLoading(true);
     e.preventDefault();
     
-    if (!isFormValid) {
+    if (!validateForm()) {
       setIsLoading(false);
       return;
     }
@@ -104,7 +170,9 @@ export default function HotelCheckout() {
         pricing: checkoutData.pricing,
         room_facilities: checkoutData.roomData.room_facilities,
         food_inclusions: checkoutData.foodInclusions,
-        rooms: checkoutData?.bookingDetails?.rooms
+        rooms: checkoutData?.bookingDetails?.rooms,
+        citizen: formData?.citizen,
+        passport: formData?.citizen !== 'indian' ? formData.passport : null
       };
 
       console.log('Order payload:', orderPayload);
@@ -145,7 +213,7 @@ export default function HotelCheckout() {
             "room_id": checkoutData.roomId,
             "check_in": checkoutData.bookingDetails.checkInDate,
             "check_out": checkoutData.bookingDetails.checkOutDate,
-            "guests": JSON.stringify(checkoutData.bookingDetails.guests)
+            "guests": JSON.stringify(checkoutData.bookingDetails.guests),
           },
           "theme": {
             "color": "#3399cc",
@@ -165,8 +233,6 @@ export default function HotelCheckout() {
       setIsLoading(false);
     }
   };
-
-  const isFormValid = formData.name.trim() && formData.address.trim() && formData.phone.trim() && formData.email.trim();
 
   if (!isDataLoaded) {
     return (
@@ -355,7 +421,7 @@ export default function HotelCheckout() {
                       name="name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 text-sm bg-white/50"
+                      className={`w-full px-3 py-2 pl-8 border ${formErrors.name ? 'border-red-400' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 text-sm bg-white/50`}
                       placeholder="Enter your full name"
                       required
                     />
@@ -363,6 +429,7 @@ export default function HotelCheckout() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                   </div>
+                  {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
                 </div>
 
                 {/* Email Field */}
@@ -377,7 +444,7 @@ export default function HotelCheckout() {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 text-sm bg-white/50"
+                      className={`w-full px-3 py-2 pl-8 border ${formErrors.email ? 'border-red-400' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 text-sm bg-white/50`}
                       placeholder="Enter your email"
                       required
                     />
@@ -385,6 +452,7 @@ export default function HotelCheckout() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                     </svg>
                   </div>
+                  {formErrors.email && <p className="text-xs text-red-500">{formErrors.email}</p>}
                 </div>
 
                 {/* Address Field */}
@@ -399,7 +467,7 @@ export default function HotelCheckout() {
                       value={formData.address}
                       onChange={handleInputChange}
                       rows={2}
-                      className="w-full px-3 py-2 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 resize-none text-sm bg-white/50"
+                      className={`w-full px-3 py-2 pl-8 border ${formErrors.address ? 'border-red-400' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 resize-none text-sm bg-white/50`}
                       placeholder="Enter your address"
                       required
                     />
@@ -407,6 +475,7 @@ export default function HotelCheckout() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     </svg>
                   </div>
+                  {formErrors.address && <p className="text-xs text-red-500">{formErrors.address}</p>}
                 </div>
 
                 {/* Phone Field */}
@@ -421,7 +490,7 @@ export default function HotelCheckout() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 pl-8 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 text-sm bg-white/50"
+                      className={`w-full px-3 py-2 pl-8 border ${formErrors.phone ? 'border-red-400' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 text-sm bg-white/50`}
                       placeholder="+91 98765 43210"
                       required
                     />
@@ -429,7 +498,51 @@ export default function HotelCheckout() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                     </svg>
                   </div>
+                  {formErrors.phone && <p className="text-xs text-red-500">{formErrors.phone}</p>}
                 </div>
+
+                {/* Citizen Field */}
+                <div className="space-y-1">
+                  <label htmlFor="citizen" className="block text-xs font-semibold text-gray-700">
+                    Citizen *
+                  </label>
+                  <select
+                    id="citizen"
+                    name="citizen"
+                    value={formData.citizen}
+                    onChange={handleCitizenChange}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 text-sm bg-white/50"
+                    required
+                  >
+                    <option value="indian">Indian</option>
+                    <option value="non-indian">Non-Indian</option>
+                  </select>
+                </div>
+
+                {/* Passport Field (only for non-indian) */}
+                {formData.citizen === 'non-indian' && (
+                  <div className="space-y-1">
+                    <label htmlFor="passport" className="block text-xs font-semibold text-gray-700">
+                      Passport Number *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="passport"
+                        name="passport"
+                        value={formData.passport}
+                        onChange={handleInputChange}
+                        className={`w-full px-3 py-2 pl-8 border ${formErrors.passport ? 'border-red-400' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-900 placeholder-gray-400 text-sm bg-white/50`}
+                        placeholder="Enter your passport number"
+                        required={formData.citizen === 'non-indian'}
+                      />
+                      <svg className="absolute left-2 top-2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0-1.657 1.343-3 3-3s3 1.343 3 3-1.343 3-3 3-3-1.343-3-3z" />
+                      </svg>
+                    </div>
+                    {formErrors.passport && <p className="text-xs text-red-500">{formErrors.passport}</p>}
+                  </div>
+                )}
 
                 {/* Submit Button */}
                 <button

@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { Bell, Heart, Shield, Clock } from 'lucide-react';
 import ModernSidebar from '../components/admin/Sidebar/Sidebar'; // Adjust path as needed
 import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const AdminLayouts = () => {
   const [activeItem, setActiveItem] = useState('Rooms');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  
+
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -46,14 +49,14 @@ const AdminLayouts = () => {
         </main>
 
         {/* Custom Admin Footer */}
-        <footer className="fixed bottom-0 right-0 z-20 bg-white border-t border-gray-200 transition-all duration-300"
+        {/* <footer className="fixed bottom-0 right-0 z-20 bg-white border-t border-gray-200 transition-all duration-300"
                 style={{ 
                   left: isCollapsed ? '64px' : '256px',
                   height: '80px'
                 }}>
           <div className="h-full px-6 py-4">
             <div className="flex items-center justify-between h-full">
-              {/* Left side - Copyright */}
+           
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
@@ -65,7 +68,7 @@ const AdminLayouts = () => {
                 </div>
               </div>
 
-              {/* Center - System Status */}
+          
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -77,7 +80,7 @@ const AdminLayouts = () => {
                 </div>
               </div>
 
-              {/* Right side - Version & Support */}
+           
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-3">
                   <span className="text-xs text-gray-500">Version 1.0.0</span>
@@ -95,7 +98,7 @@ const AdminLayouts = () => {
               </div>
             </div>
           </div>
-        </footer>
+        </footer> */}
       </div>
     </div>
   );

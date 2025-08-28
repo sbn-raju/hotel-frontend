@@ -83,24 +83,25 @@ const LuxuryHeroHeaderUser = () => {
               </motion.div>
             </div>
           ) : (
-            <motion.button
-              onClick={() => scrollToSection("contact")}
-              className="relative px-6 py-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium shadow-lg overflow-hidden"
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0 20px 40px rgba(59, 130, 246, 0.3)",
-              }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-            >
-              <span className="relative z-10">Book Now</span>
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500"
-                initial={{ x: "100%" }}
-                whileHover={{ x: 0 }}
-                transition={{ duration: 0.3 }}
-              />
-            </motion.button>
+            // <motion.button
+            //   onClick={() => scrollToSection("contact")}
+            //   className="relative px-6 py-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium shadow-lg overflow-hidden"
+            //   whileHover={{
+            //     scale: 1.05,
+            //     boxShadow: "0 20px 40px rgba(59, 130, 246, 0.3)",
+            //   }}
+            //   whileTap={{ scale: 0.95 }}
+            //   transition={{ duration: 0.2 }}
+            // >
+            //   {/* <span className="relative z-10">Book Now</span> */}
+            //   <motion.div
+            //     className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500"
+            //     initial={{ x: "100%" }}
+            //     whileHover={{ x: 0 }}
+            //     transition={{ duration: 0.3 }}
+            //   />
+            // </motion.button>
+            null
           )}
         </nav>
 

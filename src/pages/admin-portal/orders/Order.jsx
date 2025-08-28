@@ -46,12 +46,14 @@ const OrderDashboard = () => {
   const [endDate, setEndDate] = useState('');
   const [checkInStartDate, setCheckInStartDate] = useState('');
   const [checkInEndDate, setCheckInEndDate] = useState('');
+  const [checkOutStartDate, setCheckOutStartDate] = useState('');
+  const [checkOutEndDate, setCheckOutEndDate] = useState('');
 
   // Base API URL - Updated to match your API endpoint
   const API_BASE_URL = 'https://hotel-backend-production-a5b0.up.railway.app/api/v1.hotel/payment';
 
   // Fetch orders from API
-  const fetchOrders = async (page = 1, limit = 10, status = '', search = '', startDate = '', endDate = '') => {
+  const fetchOrders = async (page = 1, limit = 10, status = '', search = '', startDate = '', endDate = '', checkInStart = '', checkInEnd = '', checkOutStart = '', checkOutEnd = '') => {
     try {
       setLoading(true);
       setError(null);
@@ -78,6 +80,22 @@ const OrderDashboard = () => {
         params.append('endDate', endDate);
       }
 
+      if (checkInStart) {
+        params.append('checkInStart', checkInStart);
+      }
+
+      if (checkInEnd) {
+        params.append('checkInEnd', checkInEnd);
+      }
+
+      if (checkOutStart) {
+        params.append('checkOutStart', checkOutStart);
+      }
+
+      if (checkOutEnd) {
+        params.append('checkOutEnd', checkOutEnd);
+      }
+
       const url = `${API_BASE_URL}/fetch?${params.toString()}`;
       
       const response = await fetch(url, {
@@ -94,36 +112,9 @@ const OrderDashboard = () => {
       const data = await response.json();
 
       if (data.success) {
-        let filteredOrders = data.data;
-
-        // Apply client-side check-in date filter if specified
-        if (checkInStartDate || checkInEndDate) {
-          filteredOrders = filteredOrders.filter(order => {
-            const checkInDate = order.order_response?.notes?.[0]?.checkIn;
-            if (!checkInDate) return false;
-            
-            const orderCheckInDate = new Date(checkInDate);
-            const filterStartDate = checkInStartDate ? new Date(checkInStartDate) : null;
-            const filterEndDate = checkInEndDate ? new Date(checkInEndDate) : null;
-            
-            if (filterStartDate && orderCheckInDate < filterStartDate) return false;
-            if (filterEndDate && orderCheckInDate > filterEndDate) return false;
-            
-            return true;
-          });
-        }
-
-        setOrders(filteredOrders);
-        
-        // Use API response meta data if check-in filter is not applied, otherwise calculate manually
-        if (!checkInStartDate && !checkInEndDate) {
-          setTotalOrders(data.meta.total);
-          setTotalPages(data.meta.pages);
-        } else {
-          // Recalculate pagination for client-side filtered data
-          setTotalOrders(filteredOrders.length);
-          setTotalPages(Math.ceil(filteredOrders.length / limit));
-        }
+        setOrders(data.data);
+        setTotalOrders(data.meta.total);
+        setTotalPages(data.meta.pages);
       } else {
         throw new Error(data.message || 'Failed to fetch orders');
       }
@@ -140,14 +131,14 @@ const OrderDashboard = () => {
 
   // Initial load and when filters change
   useEffect(() => {
-    fetchOrders(currentPage, itemsPerPage, statusFilter, searchTerm, startDate, endDate);
+    fetchOrders(currentPage, itemsPerPage, statusFilter, searchTerm, startDate, endDate, checkInStartDate, checkInEndDate, checkOutStartDate, checkOutEndDate);
   }, [currentPage, itemsPerPage, statusFilter]);
 
   // Search with debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (currentPage === 1) {
-        fetchOrders(1, itemsPerPage, statusFilter, searchTerm, startDate, endDate);
+        fetchOrders(1, itemsPerPage, statusFilter, searchTerm, startDate, endDate, checkInStartDate, checkInEndDate, checkOutStartDate, checkOutEndDate);
       } else {
         setCurrentPage(1);
       }
@@ -198,7 +189,7 @@ const OrderDashboard = () => {
 
   // Handle refresh
   const handleRefresh = () => {
-    fetchOrders(currentPage, itemsPerPage, statusFilter, searchTerm, startDate, endDate);
+    fetchOrders(currentPage, itemsPerPage, statusFilter, searchTerm, startDate, endDate, checkInStartDate, checkInEndDate, checkOutStartDate, checkOutEndDate);
   };
 
   // Handle status filter change
@@ -221,7 +212,7 @@ const OrderDashboard = () => {
   // Handle filter submit
   const handleFilterSubmit = () => {
     setCurrentPage(1);
-    fetchOrders(1, itemsPerPage, statusFilter, searchTerm, startDate, endDate);
+    fetchOrders(1, itemsPerPage, statusFilter, searchTerm, startDate, endDate, checkInStartDate, checkInEndDate, checkOutStartDate, checkOutEndDate);
   };
 
   // Handle clear filters
@@ -230,11 +221,13 @@ const OrderDashboard = () => {
     setEndDate('');
     setCheckInStartDate('');
     setCheckInEndDate('');
+    setCheckOutStartDate('');
+    setCheckOutEndDate('');
     setStatusFilter('');
     setSearchTerm('');
     setCurrentPage(1);
     setTimeout(() => {
-      fetchOrders(1, itemsPerPage, '', '', '', '');
+      fetchOrders(1, itemsPerPage, '', '', '', '', '', '', '', '');
     }, 100);
   };
 
@@ -275,22 +268,6 @@ const OrderDashboard = () => {
   const formatCurrency = (amount) => {
     return `₹${(amount / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
   };
-
-  // Get displayed orders (for client-side filtering like check-in dates)
-  const getDisplayedOrders = () => {
-    let displayedOrders = orders;
-    
-    // If we have client-side check-in date filters, apply pagination manually
-    if (checkInStartDate || checkInEndDate) {
-      const startIndex = (currentPage - 1) * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      displayedOrders = orders.slice(startIndex, endIndex);
-    }
-    
-    return displayedOrders;
-  };
-
-  const displayedOrders = getDisplayedOrders();
 
   if (loading) {
     return (
@@ -359,124 +336,157 @@ const OrderDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="bg-white shadow rounded-xl p-4 mb-6">
-  <h2 className="text-lg font-semibold text-gray-700 mb-4">Filters</h2>
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">Filters</h2>
 
-  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-    {/* Status Filter */}
-    <div className="flex flex-col">
-      <label className="text-sm font-medium text-gray-600 mb-1">Status</label>
-      <select
-        value={statusFilter}
-        onChange={(e) => handleStatusFilterChange(e.target.value)}
-        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      >
-        <option value="">All Statuses</option>
-        <option value="pending">Pending</option>
-        <option value="success">Success</option>
-        <option value="failed">Failed</option>
-        <option value="created">Created</option>
-      </select>
-    </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Status Filter */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-600 mb-1">Status</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => handleStatusFilterChange(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="success">Success</option>
+                  <option value="failed">Failed</option>
+                  <option value="created">Created</option>
+                </select>
+              </div>
 
-    {/* Order Date Range */}
-    {/* <div className="flex flex-col">
-      <label className="text-sm font-medium text-gray-600 mb-1">Order From</label>
-      <input
-        type="date"
-        value={startDate}
-        onChange={(e) => setStartDate(e.target.value)}
-        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
-    </div>
-    <div className="flex flex-col">
-      <label className="text-sm font-medium text-gray-600 mb-1">Order To</label>
-      <input
-        type="date"
-        value={endDate}
-        onChange={(e) => setEndDate(e.target.value)}
-        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
-    </div> */}
+              {/* Order Date Range */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-600 mb-1">Order From</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-600 mb-1">Order To</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
 
-    {/* Check-in Date Range */}
-    <div className="flex flex-col">
-      <label className="text-sm font-medium text-gray-600 mb-1">Check-in From</label>
-      <input
-        type="date"
-        value={checkInStartDate}
-        onChange={(e) => setCheckInStartDate(e.target.value)}
-        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
-    </div>
-    <div className="flex flex-col">
-      <label className="text-sm font-medium text-gray-600 mb-1">Check-in To</label>
-      <input
-        type="date"
-        value={checkInEndDate}
-        onChange={(e) => setCheckInEndDate(e.target.value)}
-        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      />
-    </div>
-  </div>
+              {/* Check-in Date Range */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-600 mb-1">Check-in From</label>
+                <input
+                  type="date"
+                  value={checkInStartDate}
+                  onChange={(e) => setCheckInStartDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-600 mb-1">Check-in To</label>
+                <input
+                  type="date"
+                  value={checkInEndDate}
+                  onChange={(e) => setCheckInEndDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
 
-  {/* Action Buttons */}
-  <div className="flex justify-end space-x-3 mt-6">
-    <button
-      onClick={handleClearFilters}
-      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-    >
-      Clear
-    </button>
-    <button
-      onClick={handleFilterSubmit}
-      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-    >
-      Apply
-    </button>
-  </div>
+              {/* Check-out Date Range - NEW */}
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-600 mb-1">Check-out From</label>
+                <input
+                  type="date"
+                  value={checkOutStartDate}
+                  onChange={(e) => setCheckOutStartDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+            </div>
 
-  {/* Active Filters */}
-  {(startDate || endDate || checkInStartDate || checkInEndDate || statusFilter) && (
-    <div className="mt-4 flex flex-wrap gap-2">
-      <span className="text-sm text-gray-600">Active filters:</span>
-      {startDate && (
-        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-          Order From: {new Date(startDate).toLocaleDateString()}
-        </span>
-      )}
-      {endDate && (
-        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
-          Order To: {new Date(endDate).toLocaleDateString()}
-        </span>
-      )}
-      {checkInStartDate && (
-        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
-          Check-in From: {new Date(checkInStartDate).toLocaleDateString()}
-        </span>
-      )}
-      {checkInEndDate && (
-        <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
-          Check-in To: {new Date(checkInEndDate).toLocaleDateString()}
-        </span>
-      )}
-      {statusFilter && (
-        <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-          Status: {statusFilter}
-        </span>
-      )}
-    </div>
-  )}
-</div>
+            {/* Second row for check-out end date */}
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mt-4">
+              <div className="flex flex-col">
+                <label className="text-sm font-medium text-gray-600 mb-1">Check-out To</label>
+                <input
+                  type="date"
+                  value={checkOutEndDate}
+                  onChange={(e) => setCheckOutEndDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+            </div>
 
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Clear
+              </button>
+              <button
+                onClick={handleFilterSubmit}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Apply
+              </button>
+            </div>
+
+            {/* Active Filters */}
+            {(startDate || endDate || checkInStartDate || checkInEndDate || checkOutStartDate || checkOutEndDate || statusFilter) && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="text-sm text-gray-600">Active filters:</span>
+                {startDate && (
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                    Order From: {new Date(startDate).toLocaleDateString()}
+                  </span>
+                )}
+                {endDate && (
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
+                    Order To: {new Date(endDate).toLocaleDateString()}
+                  </span>
+                )}
+                {checkInStartDate && (
+                  <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                    Check-in From: {new Date(checkInStartDate).toLocaleDateString()}
+                  </span>
+                )}
+                {checkInEndDate && (
+                  <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">
+                    Check-in To: {new Date(checkInEndDate).toLocaleDateString()}
+                  </span>
+                )}
+                {checkOutStartDate && (
+                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                    Check-out From: {new Date(checkOutStartDate).toLocaleDateString()}
+                  </span>
+                )}
+                {checkOutEndDate && (
+                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
+                    Check-out To: {new Date(checkOutEndDate).toLocaleDateString()}
+                  </span>
+                )}
+                {statusFilter && (
+                  <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs">
+                    Status: {statusFilter}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Orders Table */}
         <div className="mt-6 overflow-hidden">
-          {displayedOrders.length === 0 ? (
+          {orders.length === 0 ? (
             <div className="text-center py-12">
               <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No orders found</p>
-              {(startDate || endDate || checkInStartDate || checkInEndDate || statusFilter || searchTerm) && (
+              {(startDate || endDate || checkInStartDate || checkInEndDate || checkOutStartDate || checkOutEndDate || statusFilter || searchTerm) && (
                 <button
                   onClick={handleClearFilters}
                   className="mt-2 text-blue-600 hover:text-blue-800"
@@ -506,6 +516,9 @@ const OrderDashboard = () => {
                       Check-in Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Check-out Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Created Date
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -514,9 +527,10 @@ const OrderDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {displayedOrders.map((order) => {
+                  {orders?.map((order) => {
                     const formattedOrder = formatOrderData(order);
                     const checkInDate = order.order_response?.notes?.[0]?.checkIn;
+                    const checkOutDate = order.order_response?.notes?.[0]?.checkOut;
                     return (
                       <tr key={order._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -526,10 +540,10 @@ const OrderDashboard = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                            {/* <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
                               <User className="h-5 w-5 text-gray-500" />
-                            </div>
-                            <div className="ml-4">
+                            </div> */}
+                            <div >
                               <div className="text-sm font-medium text-gray-900">
                                 {formattedOrder.customer.name}
                               </div>
@@ -557,6 +571,14 @@ const OrderDashboard = () => {
                             <Calendar className="h-4 w-4 text-gray-400 mr-1" />
                             <span className="text-sm text-gray-900">
                               {checkInDate ? new Date(checkInDate).toLocaleDateString() : 'N/A'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 text-green-400 mr-1" />
+                            <span className="text-sm text-gray-900">
+                              {checkOutDate ? new Date(checkOutDate).toLocaleDateString() : 'N/A'}
                             </span>
                           </div>
                         </td>
@@ -666,7 +688,7 @@ const OrderDashboard = () => {
 
       {/* Order Details Modal */}
       {showModal && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="fixed inset-0 backdrop-blur-md bg-black/40 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div className="">
               <div className="absolute inset-0" onClick={closeModal}></div>

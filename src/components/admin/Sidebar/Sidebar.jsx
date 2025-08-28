@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink } from "react-router-dom";
+import { Navigate, NavLink } from "react-router-dom";
 import { 
   Home, 
   User, 
@@ -18,17 +18,22 @@ import {
   House,
   PackageOpen,
   ChartColumn,
-  LucideFileCog
+  LucideFileCog,
+  LayoutDashboardIcon
 } from 'lucide-react';
+import { secureFetch } from '../../../helpers/secureFetch';
+import { useNavigate } from 'react-router-dom';
 
 // Sidebar Component
 export default function ModernSidebar({ activeItem, setActiveItem, isCollapsed, setIsCollapsed }) {
   const [openMenus, setOpenMenus] = useState({});
+  const navigate = useNavigate();
 
   const menuItems = [
+    { id: 'logs', to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboardIcon },
     { id: 'room', to: '/admin/room', label: 'Rooms', icon: Home },
     { id: 'orders', to: '/admin/orders', label: 'Orders', icon: PackageOpen },
-    { id: 'logs', to: '/admin/logs', label: 'Logs', icon: LucideFileCog },
+    { id: 'customer', to: '/admin/customers', label: 'Customers', icon: User },
   ];
 
   const toggleMenu = (label) => {
@@ -36,6 +41,23 @@ export default function ModernSidebar({ activeItem, setActiveItem, isCollapsed, 
       setOpenMenus((prev) => ({ ...prev, [label]: !prev[label] }));
     }
   };
+
+
+  //Handling the user logout//
+  const handleLogout = async()=>{
+    try {
+      const response = await secureFetch("/auth/logout", {
+        method: "POST",
+      });
+      const result = await response.json();
+
+      if(result.success){
+        navigate("/");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
   return (
     <div className={`fixed left-0 top-0 h-full bg-white shadow-lg transition-all duration-300 z-40 ${
@@ -47,9 +69,9 @@ export default function ModernSidebar({ activeItem, setActiveItem, isCollapsed, 
         {!isCollapsed && (
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">H</span>
+              <span className="text-white font-bold text-sm">M</span>
             </div>
-            <span className="font-semibold text-gray-800">Hotel Manage</span>
+            <span className="font-semibold text-gray-800">Manners Lodge</span>
           </div>
         )}
         <button
@@ -59,20 +81,6 @@ export default function ModernSidebar({ activeItem, setActiveItem, isCollapsed, 
           {isCollapsed ? <Menu size={20} /> : <X size={20} />}
         </button>
       </div>
-
-      {/* Search Bar */}
-      {/* {!isCollapsed && (
-        <div className="p-4 border-b border-gray-200">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-            <input
-              type="text"
-              placeholder="Search..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-      )} */}
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-2">
@@ -145,18 +153,7 @@ export default function ModernSidebar({ activeItem, setActiveItem, isCollapsed, 
 
       {/* User Profile Section */}
       <div className="border-t border-gray-200 p-4">
-        {/* <div className={`flex items-center space-x-3 mb-3 ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-medium">JD</span>
-          </div>
-          {!isCollapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800 truncate">John Doe</p>
-              <p className="text-xs text-gray-500 truncate">john@example.com</p>
-            </div>
-          )}
-        </div> */}
-
+      
         {/* Logout Button */}
         <button 
           className={`
@@ -165,6 +162,7 @@ export default function ModernSidebar({ activeItem, setActiveItem, isCollapsed, 
             ${isCollapsed ? 'justify-center' : ''}
           `}
           title={isCollapsed ? "Logout" : ""}
+          onClick={handleLogout}
         >
           <LogOut size={isCollapsed ? 24 : 20} />
           {!isCollapsed && <span>Logout</span>}

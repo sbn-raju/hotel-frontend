@@ -21,6 +21,9 @@ import PaymentSuccess from "./pages/payments/PaymentSuccess";
 import UserDashboard from "./pages/user-portal/UserDashboard";
 import Transactions from "./pages/user-portal/transactions/Transactions";
 import PastTrips from "./pages/user-portal/past-trips/PastTrips";
+import PrivateRoute from "./routes/PrivatesRoutes";
+import Authorization from "./components/Authorization";
+import Customers from "./pages/admin-portal/customers/Customers";
 
 
 
@@ -46,17 +49,17 @@ function App() {
       }/>
      
       <Route path="/room-details/:id" element={
-        <UserLayouts> 
+        // <UserLayouts> 
           <RoomDetailsPage/>
-        </UserLayouts>
+        // {/* </UserLayouts> */}
       }/>
      
      <Route path="/room/checkout" element={
-      <ProtectedRoute>
-        <UserLayouts> 
+      // <ProtectedRoute>
+      //   <UserLayouts> 
           <HotelCheckout/>
-        </UserLayouts>
-      </ProtectedRoute>
+      //   </UserLayouts>
+      // </ProtectedRoute>
       }/>
 
       {/* User Routes */}
@@ -77,16 +80,22 @@ function App() {
 
       
 
-      <Route path="" element={<AdminLayouts/>}>
+      <Route path="" element={
+
+          <AdminLayouts/>
+   
+        }>
         <Route path="/admin/home" element={<KPIDashboard/>}/>
         <Route path="/admin/room" element={<Room/>}/>
         <Route path="/admin/orders" element={<OrderDashboard/>}/>
-        <Route path="/admin/logs" element={<ExtrasLogDashboard/>}/>
+        <Route path="/admin/dashboard" element={<ExtrasLogDashboard/>}/>
+        <Route path="/admin/customers" element={<Customers/>}/>
       </Route>
 
       
 
       <Route path="/*" element={<NotFound/>}/>
+      <Route path="/not-authorized" element={<Authorization/>}/>
     </Routes>
        <Toaster/>
    </Router>

@@ -152,64 +152,7 @@ const ExtrasLogDashboard = () => {
   };
 
   const tileData = [
-    {
-      title: 'Extra Bed Cost',
-      value: record.extra_bed_cost,
-      editValue: editedRecord.extra_bed_cost,
-      name: 'extra_bed_cost',
-      icon: Bed,
-      color: 'blue',
-      prefix: '₹'
-    },
-    {
-      title: 'Extra Person Cost',
-      value: record.extra_person_cost,
-      editValue: editedRecord.extra_person_cost,
-      name: 'extra_person_cost',
-      icon: Users,
-      color: 'green',
-      prefix: '₹'
-    },
-    {
-      title: 'Total Rooms',
-      value: record.total_rooms,
-      editValue: editedRecord.total_rooms,
-      name: 'total_rooms',
-      icon: Home,
-      color: 'purple'
-    },
-    {
-      title: 'Rooms Booked',
-      value: record.total_rooms_booked,
-      editValue: editedRecord.total_rooms_booked,
-      name: 'total_rooms_booked',
-      icon: CheckCircle,
-      color: 'red'
-    },
-    {
-      title: 'Rooms Available',
-      value: record.total_rooms_available,
-      editValue: editedRecord.total_rooms_available,
-      name: 'total_rooms_available',
-      icon: Home,
-      color: 'orange'
-    },
-    {
-      title: 'Extra Beds',
-      value: record.total_extra_beds,
-      editValue: editedRecord.total_extra_beds,
-      name: 'total_extra_beds',
-      icon: Bed,
-      color: 'indigo'
-    },
-    {
-      title: 'Extra Persons',
-      value: record.total_extra_persons,
-      editValue: editedRecord.total_extra_persons,
-      name: 'total_extra_persons',
-      icon: Users,
-      color: 'pink'
-    },
+  
     {
       title: '4-Bedroom Available',
       value: record.total_4bedrooms_available,
@@ -405,15 +348,7 @@ const ExtrasLogDashboard = () => {
               </p>
             </div>
             
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
-              <h3 className="text-lg font-semibold mb-2">Total Available</h3>
-              <p className="text-3xl font-bold">
-                {record.total_4bedrooms_available + record.total_3bedrooms_available + record.total_2bedrooms_available}
-              </p>
-              <p className="text-purple-100 mt-1">
-                All bedroom types
-              </p>
-            </div>
+           
           </div>
         )}
 

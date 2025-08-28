@@ -300,6 +300,7 @@ const Room = () => {
   };
 
   const handleSubmit = async () => {
+    setLoading(true);
     if (!formData.room_type || !formData.room_price) {
       alert('Please fill in all required fields');
       return;
@@ -398,6 +399,8 @@ const Room = () => {
     } catch (error) {
       console.error('Error submitting room:', error);
       alert(`Failed to ${modalMode === 'create' ? 'add' : 'update'} room. Please try again.`);
+    }finally{
+      setLoading(false);
     }
   };
 
@@ -407,6 +410,7 @@ const Room = () => {
   };
 
   const confirmDelete = async () => {
+    setLoading(true)
     try {
       const roomId = roomToDelete._id || roomToDelete.id;
       const response = await secureFetch(`/room/delete/${roomId}`, {
@@ -423,6 +427,8 @@ const Room = () => {
     } catch (error) {
       console.error('Error deleting room:', error);
       alert('Failed to delete room. Please try again.');
+    }finally{
+      setLoading(false)
     }
     
     setShowDeleteConfirm(false);
@@ -670,9 +676,10 @@ const Room = () => {
       </div>
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white bg-opacity-95 backdrop-blur-md rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-white border-opacity-20">
+     
+     {showModal && (
+        <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex justify-center items-center z-50 p-4">
+          <div className="bg-white bg-opacity-95 backdrop-blur-md rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-white border-opacity-20 scrollbar-hide">
             <div className="p-6 border-b border-gray-200 bg-white bg-opacity-90">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -929,9 +936,10 @@ const Room = () => {
         </div>
       )}
 
+      
       {/* Image Preview Modal */}
       {imagePreviewModal.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex justify-center items-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-lg w-full relative">
             <button
               onClick={() => setImagePreviewModal({ ...imagePreviewModal, show: false })}
@@ -985,7 +993,7 @@ const Room = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-md bg-black/40 flex justify-center items-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
             <div className="flex items-center space-x-3 mb-4">
               <AlertCircle size={28} className="text-red-500" />
