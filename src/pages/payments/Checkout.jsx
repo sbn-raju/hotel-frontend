@@ -3,10 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { secureFetch } from '../../helpers/secureFetch';
 import { BASE_URI, SELF_URI } from '../../utils/BaseUrl.utils';
 import toast from 'react-hot-toast';
-import Razorpay from 'razorpay';
 import useAuth from '../../hooks/AuthHooks';
 import Footer from '../landing/Footer';
-import passport from '../../../../backend/src/middlewares/googleAuth.middleware';
+
 
 export default function HotelCheckout() {
   const location = useLocation();
