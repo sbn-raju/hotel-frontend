@@ -49,17 +49,17 @@ function App() {
       }/>
      
       <Route path="/room-details/:id" element={
-        // <UserLayouts> 
+        <UserLayouts> 
           <RoomDetailsPage/>
-        // {/* </UserLayouts> */}
+         </UserLayouts> 
       }/>
      
      <Route path="/room/checkout" element={
-      // <ProtectedRoute>
-      //   <UserLayouts> 
+      <ProtectedRoute>
+        <UserLayouts> 
           <HotelCheckout/>
-      //   </UserLayouts>
-      // </ProtectedRoute>
+       </UserLayouts>
+       </ProtectedRoute>
       }/>
 
       {/* User Routes */}
@@ -81,10 +81,11 @@ function App() {
       
 
       <Route path="" element={
-
-          <AdminLayouts/>
-   
-        }>
+          <PrivateRoute>
+            <AdminLayouts/>
+          </PrivateRoute>
+        }
+      >
         <Route path="/admin/home" element={<KPIDashboard/>}/>
         <Route path="/admin/room" element={<Room/>}/>
         <Route path="/admin/orders" element={<OrderDashboard/>}/>
