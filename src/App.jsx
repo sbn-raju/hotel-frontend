@@ -81,9 +81,9 @@ function App() {
       
 
       <Route path="" element={
-          <PrivateRoute>
+   
             <AdminLayouts/>
-          </PrivateRoute>
+     
         }
       >
         <Route path="/admin/home" element={<KPIDashboard/>}/>

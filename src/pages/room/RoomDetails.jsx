@@ -34,6 +34,7 @@ import { BASE_FILE_URI, BASE_URI } from "../../utils/BaseUrl.utils";
 import Loader from "../../components/loaders/Loader";
 import toast from "react-hot-toast";
 import Footer from "../landing/Footer";
+import axios from "axios"; // Add this import
 
 const RoomDetailsPage = () => {
   const [selectedImages, setSelectedImages] = useState(0);
@@ -48,6 +49,7 @@ const RoomDetailsPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isBooking, setIsBooking] = useState(false);
   const [roomData, setRoomData] = useState(null);
+  const [availableRooms, setAvailableRooms] = useState(null);
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -193,8 +195,46 @@ const RoomDetailsPage = () => {
     return inclusions;
   };
 
+  // Helper to check room availability from backend
+  const checkRoomAvailability = async () => {
+    if (!selectedDates.startDate || !selectedDates.endDate || !id) return;
+    try {
+      const res = await axios.get(
+        `${BASE_URI}/room/check-availability`,
+        {
+          params: {
+            roomId: id,
+            checkIn: selectedDates.startDate,
+            checkOut: selectedDates.endDate,
+          },
+        }
+      );
+      if (res.data && res.data.success) {
+        setAvailableRooms(res.data.availableRooms);
+        return res.data.availableRooms;
+      } else {
+        setAvailableRooms(null);
+        return null;
+      }
+    } catch (err) {
+      setAvailableRooms(null);
+      toast.error("Failed to check room availability");
+      return null;
+    }
+  };
+
+  // Check availability whenever dates or room id changes
+  useEffect(() => {
+    if (selectedDates.startDate && selectedDates.endDate && id) {
+      checkRoomAvailability();
+    } else {
+      setAvailableRooms(null);
+    }
+    // eslint-disable-next-line
+  }, [selectedDates.startDate, selectedDates.endDate, id]);
+
   // Booking validation and submission
-  const validateBookingForm = () => {
+  const validateBookingForm = async () => {
     if (!selectedDates.startDate || !selectedDates.endDate) {
       toast.error("Please select check-in and check-out dates");
       return false;
@@ -219,6 +259,24 @@ const RoomDetailsPage = () => {
     today.setHours(0, 0, 0, 0);
     if (new Date(selectedDates.startDate) < today) {
       toast.error("Check-in date cannot be in the past");
+      return false;
+    }
+
+    // Bed vs adults validation
+    const bedCount = Number(roomData?.room_facilities?.room_bed_count || 1);
+    if (guests.adults > bedCount * rooms) {
+      toast.error(
+        `Number of adults (${guests.adults}) exceeds total beds available (${bedCount * rooms}). Please book more rooms or reduce adults.`
+      );
+      return false;
+    }
+
+    // Check backend room availability
+    const avail = await checkRoomAvailability();
+    if (avail !== null && rooms > avail) {
+      toast.error(
+        `Only ${avail} room${avail === 1 ? "" : "s"} available for the selected dates. Please reduce the number of rooms.`
+      );
       return false;
     }
 
@@ -249,7 +307,7 @@ const RoomDetailsPage = () => {
 
   // Alternative approach: Store data in sessionStorage (if you need to persist across page refreshes)
   const handleBookNowWithSessionStorage = async () => {
-    if (!validateBookingForm()) {
+    if (!(await validateBookingForm())) {
       return;
     }
 
@@ -726,18 +784,18 @@ const RoomDetailsPage = () => {
                       ₹{calculateSubtotal().toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex justify-between text-gray-700 text-sm">
+                  {/* <div className="flex justify-between text-gray-700 text-sm">
                     <span className="underline font-medium">Cleaning fee</span>
                     <span className="font-semibold">
                       ₹{cleaningFee.toLocaleString()}
                     </span>
-                  </div>
-                  <div className="flex justify-between text-gray-700 text-sm">
+                  </div> */}
+                  {/* <div className="flex justify-between text-gray-700 text-sm">
                     <span className="underline font-medium">Service fee</span>
                     <span className="font-semibold">
                       ₹{serviceFee.toLocaleString()}
                     </span>
-                  </div>
+                  </div> */}
                   <div className="flex justify-between text-gray-700 text-sm">
                     <span className="underline font-medium">
                       Taxes ({totalTax}%)
@@ -1005,6 +1063,16 @@ const RoomDetailsPage = () => {
                         <Building className="w-4 h-4 text-orange-500" />
                       </div>
                     </div>
+                    {selectedDates.startDate && selectedDates.endDate && (
+      <div className="text-xs mt-1 text-gray-600">
+        {availableRooms === null
+          ? "Checking availability..."
+          : availableRooms === 0
+          ? <span className="text-red-500 font-semibold">No rooms available for selected dates</span>
+          : <span className="text-green-600 font-semibold">{availableRooms} room{availableRooms > 1 ? "s" : ""} available for selected dates</span>
+        }
+      </div>
+    )}
                   </div>
                 </div>
               </div>

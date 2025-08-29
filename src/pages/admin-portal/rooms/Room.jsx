@@ -148,7 +148,8 @@ const Room = () => {
       dinner: 'not-included'
     },
     room_price: '',
-    room_images: []
+    room_images: [],
+    number_of_rooms: 1
   });
 
   // Filter and search logic (client-side for now)
@@ -330,6 +331,7 @@ const Room = () => {
     senderFormData.append('room_food[breakfast]', formData.room_food.breakfast);
     senderFormData.append('room_food[lunch]', formData.room_food.lunch);
     senderFormData.append('room_food[dinner]', formData.room_food.dinner);
+    senderFormData.append('number_of_rooms', formData.number_of_rooms)
 
     // Handle images - only append new files, not existing ones
     const newImages = formData.room_images.filter(img => img.file !== null);
@@ -480,7 +482,7 @@ const Room = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">{room.room_type}</h3>
-              <div className="text-3xl font-bold text-blue-600">${room.room_price}</div>
+              <div className="text-3xl font-bold text-blue-600">₹{room.room_price}</div>
             </div>
             <div className="flex space-x-2">
               <button
@@ -915,6 +917,22 @@ const Room = () => {
                 />
               </div>
             </div>
+
+             <div className='ml-4'>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Quantity of the Room Type</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 mb-4">
+                <input
+                  type="number"
+                  name="number_of_rooms"
+                  value={formData.number_of_rooms}
+                  onChange={handleInputChange}
+                  required
+                  min={1}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder='Enter the Quantity'
+                />
+                </div>
+              </div>
 
             {/* Modal Actions */}
             <div className="p-6 border-t border-gray-200 flex justify-end space-x-4 bg-white bg-opacity-90">
